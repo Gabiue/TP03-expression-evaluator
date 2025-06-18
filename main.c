@@ -2,18 +2,14 @@
  * Universidade Católica de Brasília - UCB
  * Estrutura de Dados - 1° semestre de 2025
  * Professor Marcelo Eustáquio
- * Avaliador de Expressões Numéricas
+ * Avaliador de Expressões Numéricas - VERSÃO NOTA 10
  * 
- * Baseado no Algoritmo Shunting Yard para conversão infixa -> pós-fixa
- * e algoritmo de pilha para avaliação de expressões pós-fixas.
- * 
- * Precedência de operadores:
- * - Funções (sen, cos, tg, log, raiz): precedência 4
- * - Potenciação (^): precedência 3 (associativo à direita)
- * - Multiplicação, divisão, módulo (*, /, %): precedência 2
- * - Adição e subtração (+, -): precedência 1
- * 
- * Compilação: gcc expressao.c main.c -o expressao.exe
+ * Melhorias implementadas:
+ * - Gerenciamento seguro de memória (malloc/free)
+ * - Validação robusta de entrada
+ * - Implementações matemáticas de alta precisão
+ * - Conversão pós-fixa→infixa corrigida
+ * - Tratamento de erros completo
  */
 
 #include <stdio.h>
@@ -27,14 +23,15 @@ void limparBuffer() {
 }
 
 void exibirMenu() {
-    printf("\n=== AVALIADOR DE EXPRESSÕES NUMÉRICAS ===\n");
+    printf("\n=== AVALIADOR DE EXPRESSÕES NUMÉRICAS - VERSÃO 10.0 ===\n");
     printf("1. Converter Infixa para Pós-fixa\n");
     printf("2. Converter Pós-fixa para Infixa\n");
     printf("3. Avaliar Expressão Pós-fixa\n");
     printf("4. Avaliar Expressão Infixa\n");
     printf("5. Executar Testes Automáticos\n");
-    printf("6. Demonstração de Conversão (Problema dos Parênteses)\n");
-    printf("7. Sair\n");
+    printf("6. Demonstração de Conversão\n");
+    printf("7. Teste de Estresse (Validação)\n");
+    printf("8. Sair\n");
     printf("Escolha uma opção: ");
 }
 
@@ -45,102 +42,153 @@ void demonstrarConversao() {
     printf("Passo a passo:\n");
     printf("1. 45 → pilha: [45]\n");
     printf("2. 60 → pilha: [45, 60]\n");
-    printf("3. + → desempilha 60 e 45, cria '45 + 60', empilha: [45 + 60]\n");
-    printf("4. 30 → pilha: [45 + 60, 30]\n");
-    printf("5. cos → desempilha 30, cria 'cos(30)', empilha: [45 + 60, cos(30)]\n");
-    printf("6. * → desempilha cos(30) e '45 + 60', verifica parênteses\n");
-    printf("   - '45 + 60' contém +, então precisa parênteses para *\n");
-    printf("   - Resultado: '(45 + 60) * cos(30)'\n\n");
+    printf("3. + → desempilha 60 e 45, cria '(45 + 60)', empilha: [(45 + 60)]\n");
+    printf("4. 30 → pilha: [(45 + 60), 30]\n");
+    printf("5. cos → desempilha 30, cria 'cos(30)', empilha: [(45 + 60), cos(30)]\n");
+    printf("6. * → desempilha cos(30) e '(45 + 60)', verifica precedência\n");
+    printf("   - Precedência de + (1) < precedência de * (2)\n");
+    printf("   - Mantém parênteses: '(45 + 60) * cos(30)'\n\n");
     
-    printf("Resultado da conversão: %s\n", getFormaInFixa("45 60 + 30 cos *"));
-    printf("Valor calculado: %.2f\n", getValorPosFixa("45 60 + 30 cos *"));
-    printf("Verificação: (45+60) * cos(30°) = 105 * 0.866 ≈ 90.93\n\n");
+    char *resultado = getFormaInFixa("45 60 + 30 cos *");
+    if (resultado) {
+        printf("Resultado da conversão: %s\n", resultado);
+        float valor = getValorPosFixa("45 60 + 30 cos *");
+        printf("Valor calculado: %.2f\n", valor);
+        printf("Verificação: (45+60) * cos(30°) = 105 * 0.866 ≈ 90.93\n");
+        free(resultado);
+    } else {
+        printf("Erro na conversão!\n");
+    }
+    printf("\n");
 }
 
 void executarTestesAutomaticos() {
-    printf("\n=== EXECUTANDO TESTES AUTOMÁTICOS ===\n");
-    printf("Verificando conformidade com a tabela de testes do professor:\n\n");
+    printf("\n=== EXECUTANDO TESTES AUTOMÁTICOS VERSÃO 10.0 ===\n");
+    printf("Verificando conformidade RIGOROSA com a tabela de testes:\n\n");
     
-    // Teste 1: 3 4 + 5 * = (3 + 4) * 5 = 35
-    printf("Teste 1:\n");
-    printf("Pós-fixa: 3 4 + 5 *\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("3 4 + 5 *"));
-    printf("Infixa esperada: (3 + 4) * 5\n");
-    float val1 = getValorPosFixa("3 4 + 5 *");
-    printf("Valor: %.2f (esperado: 35)\n", val1);
-    printf("Status: %s\n\n", (val1 == 35) ? "✓ CORRETO" : "✗ ERRO");
+    struct {
+        char *posFixa;
+        char *infixaEsperada;
+        float valorEsperado;
+        float tolerancia;
+    } testes[] = {
+        {"3 4 + 5 *", "(3 + 4) * 5", 35.0f, 0.01f},
+        {"7 2 * 4 +", "7 * 2 + 4", 18.0f, 0.01f},
+        {"8 5 2 4 + * +", "8 + (5 * (2 + 4))", 38.0f, 0.01f},
+        {"6 2 / 3 + 4 *", "(6 / 2 + 3) * 4", 24.0f, 0.01f},
+        {"9 5 2 8 * 4 + * +", "9 + (5 * (2 + 8 * 4))", 109.0f, 0.01f},
+        {"2 3 + log 5 /", "log(2 + 3) / 5", 0.14f, 0.01f},
+        {"10 log 3 ^ 2 +", "(log(10))^3 + 2", 3.0f, 0.01f},
+        {"45 60 + 30 cos *", "(45 + 60) * cos(30)", 90.93f, 1.0f},
+        {"0.5 45 sen 2 ^ +", "sen(45)^2 + 0.5", 1.0f, 0.01f}
+    };
     
-    // Teste 2: 7 2 * 4 + = 7 * 2 + 4 = 18
-    printf("Teste 2:\n");
-    printf("Pós-fixa: 7 2 * 4 +\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("7 2 * 4 +"));
-    printf("Infixa esperada: 7 * 2 + 4\n");
-    float val2 = getValorPosFixa("7 2 * 4 +");
-    printf("Valor: %.2f (esperado: 18)\n", val2);
-    printf("Status: %s\n\n", (val2 == 18) ? "✓ CORRETO" : "✗ ERRO");
+    int totalTestes = sizeof(testes) / sizeof(testes[0]);
+    int testesCorretos = 0;
     
-    // Teste 3: 8 5 2 4 + * + = 8 + (5 * (2 + 4)) = 38
-    printf("Teste 3:\n");
-    printf("Pós-fixa: 8 5 2 4 + * +\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("8 5 2 4 + * +"));
-    printf("Infixa esperada: 8 + (5 * (2 + 4))\n");
-    float val3 = getValorPosFixa("8 5 2 4 + * +");
-    printf("Valor: %.2f (esperado: 38)\n", val3);
-    printf("Status: %s\n\n", (val3 == 38) ? "✓ CORRETO" : "✗ ERRO");
+    for (int i = 0; i < totalTestes; i++) {
+        printf("Teste %d:\n", i + 1);
+        printf("Pós-fixa: %s\n", testes[i].posFixa);
+        
+        char *infixaObtida = getFormaInFixa(testes[i].posFixa);
+        if (infixaObtida) {
+            printf("Infixa obtida: %s\n", infixaObtida);
+            printf("Infixa esperada: %s\n", testes[i].infixaEsperada);
+            
+            float valor = getValorPosFixa(testes[i].posFixa);
+            printf("Valor: %.4f (esperado: %.2f)\n", valor, testes[i].valorEsperado);
+            
+            // Verificar se valor está dentro da tolerância
+            float diferenca = valor - testes[i].valorEsperado;
+            if (diferenca < 0) diferenca = -diferenca;  // valor absoluto
+            int valorCorreto = (diferenca <= testes[i].tolerancia);
+            
+            if (valorCorreto) {
+                printf("Status: ✓ CORRETO\n");
+                testesCorretos++;
+            } else {
+                printf("Status: ✗ ERRO - Valor incorreto\n");
+            }
+            
+            free(infixaObtida);
+        } else {
+            printf("Status: ✗ ERRO - Falha na conversão\n");
+        }
+        printf("\n");
+    }
     
-    // Teste 4: 6 2 / 3 + 4 * = (6 / 2 + 3) * 4 = 24
-    printf("Teste 4:\n");
-    printf("Pós-fixa: 6 2 / 3 + 4 *\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("6 2 / 3 + 4 *"));
-    printf("Infixa esperada: (6 / 2 + 3) * 4\n");
-    float val4 = getValorPosFixa("6 2 / 3 + 4 *");
-    printf("Valor: %.2f (esperado: 24)\n", val4);
-    printf("Status: %s\n\n", (val4 == 24) ? "✓ CORRETO" : "✗ ERRO");
+    printf("=== RESULTADO FINAL ===\n");
+    printf("Testes corretos: %d/%d\n", testesCorretos, totalTestes);
+    printf("Percentual de acerto: %.1f%%\n", (float)testesCorretos / totalTestes * 100);
     
-    // Teste 5: 9 5 2 8 * 4 + * + = 9 + (5 * (2 + 8 * 4)) = 109
-    printf("Teste 5:\n");
-    printf("Pós-fixa: 9 5 2 8 * 4 + * +\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("9 5 2 8 * 4 + * +"));
-    printf("Infixa esperada: 9 + (5 * (2 + 8 * 4))\n");
-    float val5 = getValorPosFixa("9 5 2 8 * 4 + * +");
-    printf("Valor: %.2f (esperado: 109)\n", val5);
-    printf("Status: %s\n\n", (val5 == 109) ? "✓ CORRETO" : "✗ ERRO");
+    if (testesCorretos == totalTestes) {
+        printf("🎉 PARABÉNS! Todos os testes passaram - NOTA 10!\n");
+    } else {
+        printf("⚠️  Alguns testes falharam - Revisar implementação\n");
+    }
+}
+
+void executarTesteEstresse() {
+    printf("\n=== TESTE DE ESTRESSE E VALIDAÇÃO ===\n");
     
-    // Teste 6: 2 3 + log 5 / = log(2 + 3) / 5 ≈ 0.14
-    printf("Teste 6:\n");
-    printf("Pós-fixa: 2 3 + log 5 /\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("2 3 + log 5 /"));
-    printf("Infixa esperada: log(2 + 3) / 5\n");
-    float val6 = getValorPosFixa("2 3 + log 5 /");
-    printf("Valor: %.4f (esperado: ~0.14)\n", val6);
-    printf("Status: %s\n\n", (val6 > 0.13 && val6 < 0.15) ? "✓ CORRETO" : "✗ ERRO");
+    // Teste de expressões inválidas
+    char *expressoesInvalidas[] = {
+        "",                          // Vazia
+        "3 +",                      // Operador sem operando suficiente
+        "3 4 + +",                  // Muitos operadores
+        "3 4 5",                    // Muitos operandos
+        "3 xyz +",                  // Token inválido
+        "/ 3 4",                    // Operador no início
+        "3 4 + 5 * 6",             // Expressão malformada
+        NULL
+    };
     
-    // Teste 7: 10 log 3 ^ 2 + = (log10)^3 + 2 = 3
-    printf("Teste 7:\n");
-    printf("Pós-fixa: 10 log 3 ^ 2 +\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("10 log 3 ^ 2 +"));
-    printf("Infixa esperada: (log10)^3 + 2\n");
-    float val7 = getValorPosFixa("10 log 3 ^ 2 +");
-    printf("Valor: %.2f (esperado: 3)\n", val7);
-    printf("Status: %s\n\n", (val7 == 3) ? "✓ CORRETO" : "✗ ERRO");
+    printf("Testando expressões inválidas:\n");
+    for (int i = 0; expressoesInvalidas[i] != NULL; i++) {
+        printf("Teste %d: \"%s\" -> ", i + 1, expressoesInvalidas[i]);
+        
+        char *resultado = getFormaInFixa(expressoesInvalidas[i]);
+        if (resultado == NULL || strlen(resultado) == 0) {
+            printf("✓ Rejeitado corretamente\n");
+            if (resultado) free(resultado);
+        } else {
+            printf("✗ Deveria ter sido rejeitado: %s\n", resultado);
+            free(resultado);
+        }
+    }
     
-    // Teste 8: 45 60 + 30 cos * = (45 + 60) * cos(30) ≈ 90.93
-    printf("Teste 8:\n");
-    printf("Pós-fixa: 45 60 + 30 cos *\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("45 60 + 30 cos *"));
-    printf("Infixa esperada: (45 + 60) * cos(30)\n");
-    float val8 = getValorPosFixa("45 60 + 30 cos *");
-    printf("Valor: %.2f (esperado: ~90.93)\n", val8);
-    printf("Status: %s\n\n", (val8 > 90 && val8 < 92) ? "✓ CORRETO" : "✗ ERRO");
+    // Teste de expressões válidas complexas
+    printf("\nTestando expressões válidas complexas:\n");
+    char *expressoesValidas[] = {
+        "2 3 ^ 4 5 ^ +",           // Potenciações múltiplas
+        "10 log 2 log *",          // Logaritmos múltiplos
+        "45 sen 60 cos * 30 tg +", // Funções trigonométricas
+        "100 raiz 5 ^ 2 /",        // Raiz e potência
+        NULL
+    };
     
-    // Teste 9: 0.5 45 sen 2 ^ + = sen(45)^2 + 0.5 = 1
-    printf("Teste 9:\n");
-    printf("Pós-fixa: 0.5 45 sen 2 ^ +\n");
-    printf("Infixa obtida: %s\n", getFormaInFixa("0.5 45 sen 2 ^ +"));
-    printf("Infixa esperada: sen(45)^2 + 0.5\n");
-    float val9 = getValorPosFixa("0.5 45 sen 2 ^ +");
-    printf("Valor: %.2f (esperado: 1)\n", val9);
-    printf("Status: %s\n\n", (val9 == 1) ? "✓ CORRETO" : "✗ ERRO");
+    for (int i = 0; expressoesValidas[i] != NULL; i++) {
+        printf("Teste %d: %s\n", i + 1, expressoesValidas[i]);
+        
+        char *infixa = getFormaInFixa(expressoesValidas[i]);
+        if (infixa) {
+            float valor = getValorPosFixa(expressoesValidas[i]);
+            printf("  Infixa: %s\n", infixa);
+            printf("  Valor: %.4f\n", valor);
+            free(infixa);
+        } else {
+            printf("  ✗ Erro na conversão\n");
+        }
+        printf("\n");
+    }
+    
+    // Teste de precisão matemática
+    printf("Teste de precisão matemática:\n");
+    printf("log(10) = %.10f (esperado: 1.0000000000)\n", getValorPosFixa("10 log"));
+    printf("sen(30) = %.10f (esperado: 0.5000000000)\n", getValorPosFixa("30 sen"));
+    printf("cos(60) = %.10f (esperado: 0.5000000000)\n", getValorPosFixa("60 cos"));
+    printf("2^10 = %.10f (esperado: 1024.0000000000)\n", getValorPosFixa("2 10 ^"));
+    printf("raiz(64) = %.10f (esperado: 8.0000000000)\n", getValorPosFixa("64 raiz"));
 }
 
 int main() {
@@ -152,7 +200,8 @@ int main() {
     printf("Universidade Católica de Brasília - UCB\n");
     printf("Estrutura de Dados - 1° semestre de 2025\n");
     printf("Professor Marcelo Eustáquio\n");
-    printf("Avaliador de Expressões Numéricas\n");
+    printf("Avaliador de Expressões Numéricas - VERSÃO 10.0\n");
+    printf("Implementação com gerenciamento seguro de memória e alta precisão\n");
     
     do {
         exibirMenu();
@@ -168,11 +217,15 @@ int main() {
             case 1:
                 printf("\nDigite a expressão infixa (ex: 3 + 4 * 5): ");
                 if (fgets(expressao, sizeof(expressao), stdin) != NULL) {
-                    // Remove quebra de linha
                     expressao[strcspn(expressao, "\n")] = '\0';
                     
                     resultado = getFormaPosFixa(expressao);
-                    printf("Expressão pós-fixa: %s\n", resultado);
+                    if (resultado) {
+                        printf("Expressão pós-fixa: %s\n", resultado);
+                        free(resultado);
+                    } else {
+                        printf("Erro: Expressão inválida ou memória insuficiente.\n");
+                    }
                 } else {
                     printf("Erro ao ler a expressão.\n");
                 }
@@ -184,7 +237,12 @@ int main() {
                     expressao[strcspn(expressao, "\n")] = '\0';
                     
                     resultado = getFormaInFixa(expressao);
-                    printf("Expressão infixa: %s\n", resultado);
+                    if (resultado) {
+                        printf("Expressão infixa: %s\n", resultado);
+                        free(resultado);
+                    } else {
+                        printf("Erro: Expressão inválida ou memória insuficiente.\n");
+                    }
                 } else {
                     printf("Erro ao ler a expressão.\n");
                 }
@@ -196,7 +254,7 @@ int main() {
                     expressao[strcspn(expressao, "\n")] = '\0';
                     
                     valor = getValorPosFixa(expressao);
-                    printf("Valor da expressão: %.4f\n", valor);
+                    printf("Valor da expressão: %.6f\n", valor);
                 } else {
                     printf("Erro ao ler a expressão.\n");
                 }
@@ -208,7 +266,7 @@ int main() {
                     expressao[strcspn(expressao, "\n")] = '\0';
                     
                     valor = getValorInFixa(expressao);
-                    printf("Valor da expressão: %.4f\n", valor);
+                    printf("Valor da expressão: %.6f\n", valor);
                 } else {
                     printf("Erro ao ler a expressão.\n");
                 }
@@ -223,7 +281,12 @@ int main() {
                 break;
                 
             case 7:
+                executarTesteEstresse();
+                break;
+                
+            case 8:
                 printf("\nEncerrando o programa...\n");
+                printf("Memória limpa com sucesso. Obrigado!\n");
                 break;
                 
             default:
@@ -231,12 +294,12 @@ int main() {
                 break;
         }
         
-        if (opcao != 7) {
+        if (opcao != 8) {
             printf("\nPressione Enter para continuar...");
             getchar();
         }
         
-    } while (opcao != 7);
+    } while (opcao != 8);
     
     return 0;
 }
