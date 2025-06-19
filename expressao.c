@@ -521,24 +521,31 @@ char *getFormaInFixa(char *Str) {
         }
         else if (isOperator(token)) {
             if (stack.top >= 1) {
-                char *right = popChar(&stack);
-                char *left = popChar(&stack);
+                // ATENÇÃO: Em pós-fixa "A B -", significa "A - B"
+                // Na pilha: A entra primeiro, B entra depois → [A, B]
+                // pop() tira B primeiro (topo), depois A
                 
-                char expression[512];  // Aumentado para evitar truncamento
-                char leftPart[200], rightPart[200];  // Aumentado
+                char *rightOperand = popChar(&stack);  // B (topo da pilha)
+                char *leftOperand = popChar(&stack);   // A (embaixo do topo)
                 
-                // Aplicar regras de parênteses
-                if (needsParentheses(left, token, 1)) {
-                    snprintf(leftPart, sizeof(leftPart), "(%s)", left);
+                // RESULTADO DEVE SER: A - B = leftOperand - rightOperand
+                
+                char expression[512];
+                char leftPart[200], rightPart[200];
+                
+                // leftOperand vai para a esquerda da expressão
+                if (needsParentheses(leftOperand, token, 1)) {
+                    snprintf(leftPart, sizeof(leftPart), "(%s)", leftOperand);
                 } else {
-                    strncpy(leftPart, left, sizeof(leftPart) - 1);
+                    strncpy(leftPart, leftOperand, sizeof(leftPart) - 1);
                     leftPart[sizeof(leftPart) - 1] = '\0';
                 }
                 
-                if (needsParentheses(right, token, 0)) {
-                    snprintf(rightPart, sizeof(rightPart), "(%s)", right);
+                // rightOperand vai para a direita da expressão  
+                if (needsParentheses(rightOperand, token, 0)) {
+                    snprintf(rightPart, sizeof(rightPart), "(%s)", rightOperand);
                 } else {
-                    strncpy(rightPart, right, sizeof(rightPart) - 1);
+                    strncpy(rightPart, rightOperand, sizeof(rightPart) - 1);
                     rightPart[sizeof(rightPart) - 1] = '\0';
                 }
                 
