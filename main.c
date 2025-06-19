@@ -2,14 +2,7 @@
  * Universidade Católica de Brasília - UCB
  * Estrutura de Dados - 1° semestre de 2025
  * Professor Marcelo Eustáquio
- * Avaliador de Expressões Numéricas - VERSÃO NOTA 10
- *
- * Melhorias implementadas:
- * - Gerenciamento seguro de memória (malloc/free)
- * - Validação robusta de entrada
- * - Implementações matemáticas de alta precisão
- * - Conversão pós-fixa→infixa corrigida
- * - Tratamento de erros completo
+ * Avaliador de Expressões Numéricas 
  */
 
 #include "expressao.h"
